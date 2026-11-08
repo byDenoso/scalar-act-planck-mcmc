@@ -64,7 +64,7 @@ jobs:
         run: |
           python scripts/gen_yaml.py ${{ matrix.model }} ${{ matrix.chain }} "$PKG" "$SPTDIR"
           D=chains/${{ matrix.model }}_c${{ matrix.chain }}
-          mkdir -p "$D"; if [ -d ckpt/$D ]; then cp -a ckpt/$D/. "$D"/; fi
+          mkdir -p "$D"; if ls ckpt/$D/chain.*.txt >/dev/null 2>&1; then cp -a ckpt/$D/. "$D"/; echo "checkpoint restaurado"; else echo "sem checkpoint valido: inicio limpo"; fi
       - name: Roda MCMC (retoma)
         env: { OMP_NUM_THREADS: "4", COBAYA_PACKAGES_PATH: "${{ github.workspace }}/packages" }
         run: |
