@@ -21,7 +21,7 @@ for mdir in sorted(set(os.path.basename(d).rsplit("_c", 1)[0] for d in glob.glob
     for d in sorted(glob.glob(f"{root}/chains/{mdir}_c*")):
         fs = sorted(glob.glob(d + "/chain*.txt"))
         if not fs: continue
-        hdr, a = load(fs[0]); a = a[int(0.3 * len(a)):]
+        hdr, a = load(fs[0]); a = np.repeat(a, np.maximum(a[:, 0], 1).astype(int), axis=0); a = a[int(0.3 * len(a)):]  # expande pesos, burn 30%
         if len(a) > 5: chains.append((hdr, a))
     if len(chains) < 2: out.append(f"| {mdir} | {len(chains)} | — | — | — |"); continue
     hdr = chains[0][0]; w = hdr.index("weight") if "weight" in hdr else 0; res = {"n_chains": len(chains), "samples": [int(len(a)) for _, a in chains], "params": {}}
@@ -29,10 +29,14 @@ for mdir in sorted(set(os.path.basename(d).rsplit("_c", 1)[0] for d in glob.glob
     for p in hdr:
         if p in ("weight", "minuslogpost", "minuslogprior", "chi2") or p.startswith("chi2__") or p.startswith("minuslogprior__"): continue
         j = hdr.index(p); col = [a[:, j] for _, a in chains]
+        if np.std(np.concatenate(col)) < 1e-12: continue
         res["params"][p] = {"mean": float(np.mean(np.concatenate(col))), "sd": float(np.std(np.concatenate(col))), "rhat": rhat(col), "ess": float(sum(ess(c) for c in col))}
     res["best_minuslogpost"] = float(best); json.dump(res, open(f"{root}/summary/{mdir}.json", "w"), indent=1)
     key = [p for p in ("H0", "fde_zc", "Alens", "w", "wa") if p in res["params"]]
-    mr = max(v["rhat"] for v in res["params"].values() if np.isfinite(v["rhat"])) if res["params"] else float("nan")
-    out.append(f"| {mdir} | {len(chains)} | {sum(res['samples'])} | {mr - 1:.4f} | " + "; ".join(f"{k}={res['params'][k]['mean']:.4g}±{res['params'][k]['sd']:.2g}" for k in key) + " |")
-open(f"{root}/summary/SUMMARY.md", "w").write("| modelo | cadeias | amostras (pós-burn) | max R−1 | parâmetros-chave |\n|---|---|---|---|---|\n" + "\n".join(out) + "\n")
+    COSMO = ("H0", "ombh2", "omch2", "logA", "ns", "tau", "fde_zc", "Alens", "w", "wa")
+    mr = max((res["params"][k]["rhat"] for k in COSMO if k in res["params"] and np.isfinite(res["params"][k]["rhat"])), default=float("nan"))
+    ma = max((v["rhat"] for v in res["params"].values() if np.isfinite(v["rhat"])), default=float("nan"))
+    res["max_Rm1_cosmo"] = float(mr - 1); res["max_Rm1_all"] = float(ma - 1); json.dump(res, open(f"{root}/summary/{mdir}.json", "w"), indent=1)
+    out.append(f"| {mdir} | {len(chains)} | {sum(res['samples'])} | {mr - 1:.3f} (todos: {ma - 1:.2f}) | " + "; ".join(f"{k}={res['params'][k]['mean']:.4g}±{res['params'][k]['sd']:.2g}" for k in key) + " |")
+open(f"{root}/summary/SUMMARY.md", "w").write("| modelo | cadeias | amostras (pós-burn) | max R−1 cosmologia (todos os parâmetros) | parâmetros-chave |\n|---|---|---|---|---|\n" + "\n".join(out) + "\n")
 print(open(f"{root}/summary/SUMMARY.md").read())
