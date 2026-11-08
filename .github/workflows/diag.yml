@@ -1,0 +1,36 @@
+name: diag-act-lite
+on: workflow_dispatch
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install cobaya camb==1.6.6 candl-like==2.2.0 2>&1 | tail -2
+      - name: candl_data
+        run: |
+          pip install candl_data 2>&1 | tail -3 || true
+          pip install "git+https://github.com/Lbalkenhol/candl_data" 2>&1 | tail -3 || true
+          python - <<'PY'
+          import importlib, os, glob
+          try:
+              import candl_data; print("candl_data", candl_data.__file__)
+              root = os.path.dirname(candl_data.__file__)
+              for f in sorted(glob.glob(root + "/**/*ACT*", recursive=True))[:30]: print(" ", f)
+          except Exception as e: print("candl_data erro", e)
+          PY
+      - name: ACT DR6 lite (GitHub)
+        run: |
+          pip install "git+https://github.com/ACTCollaboration/DR6-ACT-lite" 2>&1 | tail -3 || true
+          python - <<'PY'
+          import importlib, glob, os
+          for m in ("act_dr6_cmbonly", "actdr6_cmbonly"):
+              try:
+                  mod = importlib.import_module(m); print(m, mod.__file__)
+                  d = os.path.dirname(mod.__file__)
+                  for f in sorted(glob.glob(d + "/*"))[:30]: print(" ", f)
+              except Exception as e: print(m, "erro", e)
+          PY
+          cobaya-install act_dr6_cmbonly --packages-path pk 2>&1 | tail -5 || true
+          find pk -maxdepth 4 | head -30
