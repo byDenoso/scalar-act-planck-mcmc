@@ -40,10 +40,12 @@ jobs:
           cobaya-install run/LCDM_c0.yaml --packages-path "$PKG" --no-progress-bars
       - name: Teste de inicializacao dos 5 modelos
         run: |
+          fail=0
           for m in LCDM LCDM_Alens w0waCDM PEER1P PEER1P_Alens; do
             python scripts/make_lite_yaml.py $m 0 "$PKG" "$SPTDIR" run/_test_$m
-            cobaya-run --test run/${m}_c0.yaml 2>&1 | tail -3
+            cobaya-run --test run/${m}_c0.yaml > test_$m.log 2>&1; rc=$?; tail -4 test_$m.log; if [ $rc -ne 0 ]; then echo "::error::teste de $m falhou"; fail=1; fi
           done
+          exit $fail
   chains:
     needs: prep
     if: ${{ github.event.inputs.only_test != 'true' }}

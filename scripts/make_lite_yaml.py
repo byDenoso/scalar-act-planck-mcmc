@@ -13,6 +13,7 @@ PARAMS = {
  "tau": {"prior": {"min": 0.0, "max": 0.1}, "ref": {"dist": "norm", "loc": 0.0544, "scale": 0.0073}, "proposal": 0.0073},
  "Tcal": {"prior": {"min": 0.8, "max": 1.2}, "ref": 1.0, "proposal": 0.01},
  "Ecal": {"prior": {"min": 0.8, "max": 1.2}, "ref": 1.0, "proposal": 0.01},
+ "A_planck": {"value": "lambda A_act: A_act", "latex": "A_{\\rm Planck}"},
  "H0": {"latex": "H_0", "derived": True}, "sigma8": {"latex": "\\sigma_8", "derived": True}, "rdrag": {"derived": True},
 }
 if model.endswith("_Alens"): PARAMS["Alens"] = {"prior": {"min": 0.5, "max": 1.5}, "ref": {"dist": "norm", "loc": 1.0, "scale": 0.03}, "proposal": 0.03}
@@ -25,7 +26,7 @@ if model.startswith("PEER1P"):
     PARAMS["fde_zc"] = {"prior": {"min": 0.0005, "max": 0.18}, "ref": {"dist": "norm", "loc": 0.03, "scale": 0.005}, "proposal": 0.005}
 LIK = {
  "planck_2018_lowl.TT": None, "planck_2018_lowl.EE_sroll2": None, "planck_2018_lensing.native": None,
- "act_dr6_cmbonly.PlanckActCut": {"dataset_params": {"use_cl": "tt te ee", "lmin_cuts": "0 0 0", "lmax_cuts": "1000 600 600"}, "params": {"A_planck": {"value": "lambda A_act: A_act", "latex": "A_{\\rm Planck}"}}},
+ "act_dr6_cmbonly.PlanckActCut": {"dataset_params": {"use_cl": "tt te ee", "lmin_cuts": "0 0 0", "lmax_cuts": "1000 600 600"}},
  "act_dr6_cmbonly.ACTDR6CMBonly": {"stop_at_error": True},
  "act_dr6_lenslike.ACTDR6LensLike": {"variant": "act_baseline", "lmax": 4000},
  "spt3g_lite": {"class": "candl.interface.CandlCobayaLikelihood", "data_set_file": os.path.join(spt, "spt_candl_data/SPT3G_D1_TnE_v0/lite/SPT3G_D1_TnE_lite.yaml"), "clear_internal_priors": True, "feedback": False},
