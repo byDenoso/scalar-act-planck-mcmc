@@ -1002,7 +1002,7 @@ sampler:
         - bandint_shift_dr6_pa6_f150
     - - 9
       - - A_planck
-    - - 10
+    - - 11
       - - calG_all
         - calE_dr6_pa5_f090
         - calE_dr6_pa5_f150
