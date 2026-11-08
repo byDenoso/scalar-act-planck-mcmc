@@ -1,0 +1,14 @@
+act_dr6_lenslike==1.2.1
+act_dr6_mflike==1.1.0
+astropy==8.0.2
+camb==1.6.6
+candl-like==2.2.0
+cobaya==3.6.2
+fgspectra==1.4.1
+getdist==1.7.7
+mflike==1.0.2
+numpy==2.5.4
+PyYAML==6.0.3
+sacc==2.4
+scipy==1.18.1
+syslibrary==0.2

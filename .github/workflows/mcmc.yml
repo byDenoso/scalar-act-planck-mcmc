@@ -1,0 +1,100 @@
+name: native-mcmc
+# 5 modelos x 4 cadeias independentes; cada execucao retoma dos checkpoints no branch mcmc-checkpoints e roda ate ~5h40.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+concurrency:
+  group: native-mcmc
+  cancel-in-progress: false
+permissions:
+  contents: write
+env:
+  PKG: ${{ github.workspace }}/packages
+  SPTDIR: ${{ github.workspace }}/spt_candl_data
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip, cache-dependency-path: requirements.txt }
+      - run: pip install -r requirements.txt
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages
+            spt_candl_data
+          key: data-v1-${{ hashFiles('scripts/make_native_yaml.py', 'requirements.txt') }}
+      - name: Instala dados (Planck/ACT/SPT)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p "$PKG"
+          git clone https://github.com/SouthPoleTelescope/spt_candl_data "$SPTDIR"
+          git -C "$SPTDIR" checkout f22611a9671d50af6135f048a2ea3f43ef4c2f62
+          NEXO_DIR=. python scripts/make_native_yaml.py run/_prep
+          cobaya-install run/_prep/LCDM.yaml --packages-path "$PKG" --no-progress-bars
+  chains:
+    needs: prep
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [LCDM, LCDM_Alens, w0waCDM, PEER1P, PEER1P_Alens]
+        chain: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { ref: mcmc-checkpoints, path: ckpt }
+        continue-on-error: true
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip, cache-dependency-path: requirements.txt }
+      - run: pip install -r requirements.txt
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            packages
+            spt_candl_data
+          key: data-v1-${{ hashFiles('scripts/make_native_yaml.py', 'requirements.txt') }}
+          fail-on-cache-miss: true
+      - name: Gera YAML e restaura checkpoint
+        run: |
+          python scripts/gen_yaml.py ${{ matrix.model }} ${{ matrix.chain }} "$PKG" "$SPTDIR"
+          D=chains/${{ matrix.model }}_c${{ matrix.chain }}
+          mkdir -p "$D"; if [ -d ckpt/$D ]; then cp -a ckpt/$D/. "$D"/; fi
+      - name: Roda MCMC (retoma)
+        env: { OMP_NUM_THREADS: "4", COBAYA_PACKAGES_PATH: "${{ github.workspace }}/packages" }
+        run: |
+          timeout 20400 cobaya-run -r run/${{ matrix.model }}_c${{ matrix.chain }}.yaml || echo "encerrado por tempo ou erro (codigo $?)"
+      - name: Commit do checkpoint
+        if: always()
+        run: |
+          D=chains/${{ matrix.model }}_c${{ matrix.chain }}
+          [ -d "$D" ] || exit 0
+          cd ckpt 2>/dev/null || { mkdir ckpt && cd ckpt && git init -q && git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" && git checkout -q -b mcmc-checkpoints; }
+          mkdir -p "$D" && cp -a "../$D/." "$D"/
+          git config user.name "mcmc-bot"; git config user.email "mcmc-bot@users.noreply.github.com"
+          git add -A "$D" && git commit -q -m "checkpoint ${{ matrix.model }} c${{ matrix.chain }} $(date -u +%FT%TZ)" || exit 0
+          for i in 1 2 3 4 5; do git pull -q --rebase origin mcmc-checkpoints 2>/dev/null || true; git push -q origin HEAD:mcmc-checkpoints && break || sleep $((RANDOM % 20 + 5)); done
+  aggregate:
+    needs: chains
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { ref: mcmc-checkpoints, path: ckpt }
+        continue-on-error: true
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install numpy
+      - run: python scripts/aggregate.py ckpt
+      - name: Commit do resumo
+        run: |
+          cd ckpt && git config user.name "mcmc-bot" && git config user.email "mcmc-bot@users.noreply.github.com"
+          git add -A summary && git commit -q -m "summary $(date -u +%FT%TZ)" || exit 0
+          for i in 1 2 3; do git pull -q --rebase origin mcmc-checkpoints; git push -q origin HEAD:mcmc-checkpoints && break || sleep 10; done
+      - run: cat ckpt/summary/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
