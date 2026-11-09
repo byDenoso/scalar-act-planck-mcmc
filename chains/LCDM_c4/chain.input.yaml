@@ -1,0 +1,124 @@
+theory:
+  camb:
+    stop_at_error: false
+    extra_args:
+      kmax: 10
+      k_per_logint: 130
+      nonlinear: true
+      lens_potential_accuracy: 8
+      lens_margin: 2050
+      lAccuracyBoost: 1.2
+      min_l_logl_sampling: 6000
+      DoLateRadTruncation: false
+likelihood:
+  planck_2018_lowl.TT: null
+  planck_2018_lowl.EE_sroll2: null
+  planck_2018_lensing.native: null
+  act_dr6_cmbonly.PlanckActCut:
+    dataset_params:
+      use_cl: tt te ee
+      lmin_cuts: 0 0 0
+      lmax_cuts: 1000 600 600
+  act_dr6_cmbonly.ACTDR6CMBonly:
+    stop_at_error: true
+  act_dr6_lenslike.ACTDR6LensLike:
+    variant: act_baseline
+    lmax: 4000
+  spt3g_lite:
+    class: candl.interface.CandlCobayaLikelihood
+    data_set_file: /home/runner/work/scalar-act-planck-mcmc/scalar-act-planck-mcmc/spt_candl_data/spt_candl_data/SPT3G_D1_TnE_v0/lite/SPT3G_D1_TnE_lite.yaml
+    clear_internal_priors: true
+    feedback: false
+prior:
+  cal_dip_prior: 'lambda A_act: stats.norm.logpdf(A_act, loc = 1.0, scale = 0.003)'
+params:
+  ombh2:
+    prior:
+      min: 0.017
+      max: 0.027
+    ref:
+      dist: norm
+      loc: 0.02239
+      scale: 0.00021
+    proposal: 6.5e-05
+  omch2:
+    prior:
+      min: 0.09
+      max: 0.15
+    ref:
+      dist: norm
+      loc: 0.12
+      scale: 0.0026
+    proposal: 0.0011
+  cosmomc_theta:
+    prior:
+      min: 0.0103
+      max: 0.0105
+    ref:
+      dist: norm
+      loc: 0.010417
+      scale: 6.7e-06
+    proposal: 1.0e-05
+  logA:
+    prior:
+      min: 2.6
+      max: 3.5
+    ref:
+      dist: norm
+      loc: 3.064
+      scale: 0.024
+    proposal: 0.0036
+    drop: true
+  As:
+    value: 'lambda logA: 1e-10*np.exp(logA)'
+    derived: true
+  ns:
+    prior:
+      min: 0.9
+      max: 1.1
+    ref:
+      dist: norm
+      loc: 0.9729
+      scale: 0.006
+    proposal: 0.0033
+  tau:
+    prior:
+      min: 0.0
+      max: 0.1
+    ref:
+      dist: norm
+      loc: 0.0544
+      scale: 0.0073
+    proposal: 0.0073
+  Tcal:
+    prior:
+      min: 0.8
+      max: 1.2
+    ref: 1.0
+    proposal: 0.01
+  Ecal:
+    prior:
+      min: 0.8
+      max: 1.2
+    ref: 1.0
+    proposal: 0.01
+  A_planck:
+    value: 'lambda A_act: A_act'
+    latex: A_{\rm Planck}
+  H0:
+    latex: H_0
+    derived: true
+  sigma8:
+    latex: \sigma_8
+    derived: true
+  rdrag:
+    derived: true
+sampler:
+  mcmc:
+    Rminus1_stop: 0.01
+    Rminus1_cl_stop: 0.05
+    max_samples: 400000
+    max_tries: 100000
+    learn_proposal: true
+output: chain
+packages_path: /home/runner/work/scalar-act-planck-mcmc/scalar-act-planck-mcmc/packages
